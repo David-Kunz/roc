@@ -3838,3 +3838,90 @@ fn compose_recursive_lambda_set_productive_inferred() {
         RocStr
     );
 }
+
+#[test]
+#[cfg(any(feature = "gen-llvm", feature = "gen-wasm"))]
+fn transient_captures() {
+    assert_evals_to!(
+        indoc!(
+            r#"
+            x = "abc"
+
+            getX = \{} -> x
+
+            h = \{} -> getX {}
+
+            h {}
+            "#
+        ),
+        RocStr::from("abc"),
+        RocStr
+    );
+}
+
+#[test]
+#[cfg(any(feature = "gen-llvm", feature = "gen-wasm"))]
+fn transient_captures_after_def_ordering() {
+    assert_evals_to!(
+        indoc!(
+            r#"
+            h = \{} -> getX {}
+
+            getX = \{} -> x
+
+            x = "abc"
+
+            h {}
+            "#
+        ),
+        RocStr::from("abc"),
+        RocStr
+    );
+}
+
+#[test]
+#[cfg(any(feature = "gen-llvm", feature = "gen-wasm"))]
+fn deep_transient_capture_chain() {
+    assert_evals_to!(
+        indoc!(
+            r#"
+            z = "abc"
+
+            getX = \{} -> getY {}
+            getY = \{} -> getZ {}
+            getZ = \{} -> z
+
+            h = \{} -> getX {}
+
+            h {}
+            "#
+        ),
+        RocStr::from("abc"),
+        RocStr
+    );
+}
+
+#[test]
+#[cfg(any(feature = "gen-llvm", feature = "gen-wasm"))]
+fn deep_transient_capture_chain_with_multiple_captures() {
+    assert_evals_to!(
+        indoc!(
+            r#"
+            h = "h"
+            x = "x"
+            y = "y"
+            z = "z"
+
+            getX = \{} -> Str.concat x (getY {})
+            getY = \{} -> Str.concat y (getZ {})
+            getZ = \{} -> z
+
+            getH = \{} -> Str.concat h (getX {})
+
+            getH {}
+            "#
+        ),
+        RocStr::from("hxyz"),
+        RocStr
+    );
+}
